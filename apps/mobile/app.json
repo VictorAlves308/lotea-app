@@ -11,6 +11,7 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.victor30821.lotea",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -28,6 +29,13 @@
       "expo-localization",
       "expo-font",
       "expo-splash-screen"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "60f88455-fa50-40af-8815-148c235485d4"
+      }
+    },
+    "owner": "victor30821"
   }
 }
