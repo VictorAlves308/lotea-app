@@ -1,0 +1,500 @@
+// The Lotea MVP data model. See DATABASE.md at the project root for the full
+// explanation of every model, relationship, and invariant (ER diagram
+// included) — this file only carries what Prisma needs plus short pointers.
+//
+// Non-negotiables applied throughout (ARCHITECTURE.md §6):
+// - Every id is a UUIDv7 generated in application code via
+//   packages/shared's generateId() — never @default(uuid()) (that's v4) and
+//   never a DB-side default.
+// - Every business record carries userId (the tenant) directly — never only
+//   reachable through a join — so every repository query can scope by it.
+// - Money is Decimal everywhere, never Float.
+// - Status fields are real enums, never loose strings.
+// - Stock is units (InventoryItem rows), never a stored quantity.
+//
+// Audit field policy (graduated by how each model is actually allowed to
+// change — see DATABASE.md "Audit field policy" for the full rationale):
+// - Full (createdAt/updatedAt/deletedAt/createdBy/updatedBy): User, Lot,
+//   Product, InventoryItem, Customer — soft-delete is a real lifecycle operation.
+// - Mutable, never deleted (createdAt/updatedAt/createdBy/updatedBy): Sale —
+//   status transitions are legitimate updates, but a Sale is never deleted;
+//   cancellation is a status, not a deletion.
+// - Immutable, append-only (createdAt/createdBy only): InventoryMovement,
+//   SaleItem, PaymentAllocation — created once, never updated or deleted.
+// - Immutable, append-only + voidedAt (createdAt/createdBy/voidedAt):
+//   CustomerPayment — same tier as SaleItem, plus a nullable reversal marker.
+// - System-maintained reference data (createdAt/updatedAt/createdBy?/
+//   updatedBy? — createdBy/updatedBy nullable): CatalogProduct — global,
+//   not owned by any tenant; `active` substitutes for deletedAt.
+//
+// Sale.paidAmount and Sale.status are stored, service-maintained values, not
+// freely settable — see the Sale model's own doc comment and DATABASE.md,
+// "Accounts receivable" for the full reconciliation invariant and its one
+// documented exception (historical, pre-migration sales).
+//
+// createdBy/updatedBy are plain UUID columns, deliberately NOT enforced
+// Prisma relations to User. Making them real relations would require named
+// self-relations and inverse array fields on every single model in this
+// schema for a field that, in this single-user-per-tenant MVP, is almost
+// always equal to the record's own userId anyway. See DATABASE.md.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum LotStatus {
+  ACTIVE
+  FINISHED
+  ARCHIVED
+}
+
+/// The lifecycle state of one physical InventoryItem unit.
+enum InventoryItemStatus {
+  IN_STOCK
+  RESERVED
+  SOLD
+  WRITTEN_OFF
+}
+
+/// Every InventoryItem state change is recorded as one row of one of these
+/// types. See DATABASE.md's "Inventory movements" section.
+enum InventoryMovementType {
+  PURCHASE_ENTRY
+  SALE
+  RESERVATION
+  RESERVATION_RELEASE
+  RETURN
+  MANUAL_ADJUSTMENT
+  SALE_CANCELLATION
+  WRITE_OFF
+}
+
+enum SaleStatus {
+  PENDING
+  PARTIALLY_PAID
+  PAID
+  CANCELLED
+  REFUNDED
+}
+
+/// How a payment was actually received — set on `Sale` (its initial payment,
+/// if any) and independently on `CustomerPayment` (each later receipt).
+/// Nullable in both: null means no payment was recorded at all (a pure
+/// fiado sale) or a historical/pre-migration row that never captured this.
+enum PaymentMethod {
+  PIX
+  CARD
+  CASH
+}
+
+/// The tenant boundary. Every other model belongs to exactly one User via
+/// userId. `passwordHash` is bcrypt output — never a plain password, never
+/// logged. See DATABASE.md, "Authentication".
+model User {
+  id           String @id @db.Uuid
+  name         String
+  email        String @unique
+  passwordHash String
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  createdBy String    @db.Uuid
+  updatedBy String    @db.Uuid
+
+  lots                Lot[]
+  products            Product[]
+  inventoryItems      InventoryItem[]
+  inventoryMovements  InventoryMovement[]
+  sales               Sale[]
+  saleItems           SaleItem[]
+  refreshTokens       RefreshToken[]
+  customers           Customer[]
+  customerPayments    CustomerPayment[]
+  paymentAllocations  PaymentAllocation[]
+
+  @@index([deletedAt])
+}
+
+/// One row per issued refresh token. Deliberately minimal compared to the
+/// audit-field tiers elsewhere (no updatedAt/createdBy/updatedBy): a refresh
+/// token has exactly one actor (its own owner logging in) and exactly one
+/// state change in its whole life (revocation), so `revokedAt` alone is a
+/// sufficient "was this modified" signal. Never stores the raw token —
+/// `tokenHash` is a hash of it, so a leaked database row can't be replayed
+/// as a valid token. See DATABASE.md, "Authentication".
+model RefreshToken {
+  id        String    @id @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+/// A purchase batch. Never stores a total cost — that figure is always
+/// derived on read as SUM(InventoryItem.acquisitionCost) for the lot, so it
+/// can never drift from the items that make it up. See DATABASE.md.
+model Lot {
+  id         String    @id @db.Uuid
+  userId     String    @db.Uuid
+  name       String
+  supplier   String?
+  receivedAt DateTime
+  notes      String?
+  status     LotStatus @default(ACTIVE)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  createdBy String    @db.Uuid
+  updatedBy String    @db.Uuid
+
+  user           User            @relation(fields: [userId], references: [id])
+  inventoryItems InventoryItem[]
+
+  @@index([userId])
+  @@index([userId, status])
+}
+
+/// The canonical catalog entry — reusable identity only: name, brand,
+/// category, SKU, volume, variant. Never a cost or price: the same product
+/// can be bought at different acquisition costs across different lots, and
+/// that cost lives on each InventoryItem instead.
+///
+/// `searchTerms` is a normalized (lowercase, accent-stripped) blob of every
+/// searchable field below, maintained by the service layer on create/update
+/// — it backs typo-tolerant catalog autocomplete via the `pg_trgm` GIN index
+/// added by hand in a later migration (Prisma's schema DSL has no operator
+/// class support for trigram indexes — see DATABASE.md, "Product catalog
+/// search"). It is never user-facing and never replaces `name`.
+model Product {
+  id          String  @id @db.Uuid
+  userId      String  @db.Uuid
+  name        String
+  brand       String?
+  category    String?
+  sku         String?
+  /// e.g. "100ml" — free text, not parsed/validated as a unit.
+  volume      String?
+  /// e.g. "Masculino", "Feminino", "Infantil" — a product-line variant, distinct from category.
+  variant     String?
+  notes       String?
+  /// Legacy convenience only — never set through the product creation/edit
+  /// forms. The reseller's actual sale price is decided per unit at the
+  /// moment of the sale (`SaleItem.salePrice`), never pre-stored on the
+  /// product, since it varies too much to have a meaningful "default". Left
+  /// nullable for products created before this field existed or seeded with
+  /// one; new products never populate it.
+  defaultSalePrice Decimal? @db.Decimal(10, 2)
+  /// Product photo URL — copied once from CatalogProduct.imageUrl at creation
+  /// time when created via catalogProductId (same never-re-read rule as
+  /// name/brand/category), null for manually-created products until a future
+  /// "add photo" flow exists. No upload/storage here yet — just a URL,
+  /// typically sourced from an affiliate product data feed (Awin/Rakuten).
+  imageUrl String?
+  /// Alert threshold — a product reads as "estoque baixo" once its in-stock
+  /// InventoryItem count drops to or below this. Never asked at product
+  /// creation (adds friction for no benefit at that moment) — nullable,
+  /// settable later by editing the product. A null value simply means the
+  /// product never reads as "estoque baixo" (only ever OUT/IN_STOCK) until
+  /// one is set.
+  minStockAlert    Int?
+  searchTerms String
+  /// Provenance only — set once at creation from the CatalogProduct the user
+  /// picked (null for manually-created products). NEVER re-read for display:
+  /// this Product's own fields are the source of truth from the moment it's
+  /// created, even if the catalog entry is later edited or deactivated. See
+  /// DATABASE.md, "Global product catalog".
+  catalogProductId String? @db.Uuid
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  createdBy String    @db.Uuid
+  updatedBy String    @db.Uuid
+
+  user           User            @relation(fields: [userId], references: [id])
+  catalogProduct CatalogProduct? @relation(fields: [catalogProductId], references: [id])
+  inventoryItems InventoryItem[]
+
+  // Nullable sku values don't collide under Postgres unique-index semantics
+  // (multiple NULLs are allowed) — this only enforces uniqueness once a sku
+  // is actually set.
+  @@unique([userId, sku])
+  @@index([userId])
+  @@index([catalogProductId])
+}
+
+/// A global, shared reference catalog entry (e.g. "Natura Kaiak Clássico") —
+/// identity only, never stock/price/quantity/lote. NOT tenant-scoped: no
+/// userId, every authenticated user searches the same rows. Selecting one
+/// when creating a Product copies its fields once; the Product never reads
+/// through this relation again afterward. See DATABASE.md, "Global product
+/// catalog".
+///
+/// `active` is the hide/show flag for this table — substitutes for
+/// deletedAt, since no per-tenant soft-delete lifecycle applies to shared
+/// reference data. `brand` is required and `volume` defaults to "" (never
+/// null) specifically so the natural-key unique constraint below stays
+/// reliable for idempotent seed upserts — Postgres treats every NULL as
+/// distinct in a unique index, which would otherwise let duplicate rows slip
+/// through silently. `createdBy`/`updatedBy` are nullable: no admin-actor
+/// model exists yet (future admin panel, not built now) — kept as plain
+/// columns now since they're cheap to add and expensive to backfill later.
+model CatalogProduct {
+  id          String  @id @db.Uuid
+  brand       String
+  name        String
+  category    String?
+  volume      String  @default("")
+  description String?
+  /// Sourced from an affiliate product data feed (e.g. Awin/Rakuten), not
+  /// uploaded here — a URL only. Copied onto Product.imageUrl once at
+  /// creation time, same provenance-only rule as every other catalog field.
+  imageUrl    String?
+  active      Boolean @default(true)
+  searchTerms String
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  createdBy String?   @db.Uuid
+  updatedBy String?   @db.Uuid
+
+  products Product[]
+
+  @@unique([brand, name, volume])
+  @@index([active])
+}
+
+/// One row per physical unit. Stock is a consequence of these rows — never a
+/// stored quantity. acquisitionCost is frozen at creation time from the
+/// lot/purchase and never recalculated retroactively.
+model InventoryItem {
+  id              String              @id @db.Uuid
+  userId          String              @db.Uuid
+  productId       String              @db.Uuid
+  lotId           String              @db.Uuid
+  status          InventoryItemStatus @default(IN_STOCK)
+  acquisitionCost Decimal             @db.Decimal(10, 2)
+  /// Optional expiration date, set at purchase-entry time. Perishable goods
+  /// only — nullable because most resale inventory has none.
+  expiresAt       DateTime?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  createdBy String    @db.Uuid
+  updatedBy String    @db.Uuid
+
+  user      User                @relation(fields: [userId], references: [id])
+  product   Product             @relation(fields: [productId], references: [id])
+  lot       Lot                 @relation(fields: [lotId], references: [id])
+  movements InventoryMovement[]
+  saleItems SaleItem[]
+
+  @@index([userId])
+  @@index([userId, status])
+  @@index([userId, productId])
+  @@index([userId, lotId])
+}
+
+/// One immutable row per InventoryItem state change — never updated, never
+/// deleted. This is the audit trail that makes each unit individually
+/// traceable through its whole lifecycle (purchased, reserved, sold,
+/// returned, adjusted, written off, or a sale cancellation reversing it).
+model InventoryMovement {
+  id              String                @id @db.Uuid
+  userId          String                @db.Uuid
+  inventoryItemId String                @db.Uuid
+  /// The Sale this movement originated from, when type is SALE or SALE_CANCELLATION.
+  saleId          String?               @db.Uuid
+  type            InventoryMovementType
+  notes           String?
+
+  createdAt DateTime @default(now())
+  createdBy String   @db.Uuid
+
+  user          User          @relation(fields: [userId], references: [id])
+  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id])
+  sale          Sale?         @relation(fields: [saleId], references: [id])
+
+  @@index([userId])
+  @@index([userId, createdAt])
+  @@index([inventoryItemId, createdAt])
+}
+
+/// A completed or in-progress transaction. `total` is an immutable snapshot
+/// (sum of item sale prices at creation time) — a Sale's items never change
+/// after creation, so it can never drift. A Sale is never deleted;
+/// cancellation is a status (see SaleStatus), reversed through compensating
+/// InventoryMovement rows, never a deletion — hence no deletedAt here.
+model Sale {
+  id             String     @id @db.Uuid
+  userId         String     @db.Uuid
+  status         SaleStatus @default(PENDING)
+  total          Decimal    @db.Decimal(10, 2)
+  /// A stored, service-maintained value — NOT freely settable. Every write
+  /// path that changes it (initial payment at creation, FIFO payment
+  /// registration, payment void) also creates/removes the matching
+  /// PaymentAllocation row(s) in the same transaction, so it always equals
+  /// the live sum of this sale's active allocations — except historical
+  /// (pre-migration) sales, a documented, self-identifying exception. See
+  /// DATABASE.md, "Accounts receivable".
+  paidAmount     Decimal    @default(0) @db.Decimal(10, 2)
+  /// Nullable — required only while paidAmount < total (enforced by the
+  /// Sale_customer_required_when_outstanding CHECK constraint below). Fixed
+  /// at creation, never changed afterward.
+  customerId     String?    @db.Uuid
+  /// How the initial payment (if any) was received. Null for a pure fiado
+  /// sale (nothing received yet) or a historical row. Fixed at creation —
+  /// later receipts against this sale are their own CustomerPayment rows,
+  /// each with their own paymentMethod.
+  paymentMethod  PaymentMethod?
+  /// Client-generated key from the mobile offline outbox. Nullable — only
+  /// offline-originated sales carry one. Unique per user (not globally) so a
+  /// retried/duplicated offline submission returns the original sale instead
+  /// of creating a second one. See DATABASE.md §7 for the exact strategy.
+  idempotencyKey String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String   @db.Uuid
+  updatedBy String   @db.Uuid
+
+  user                User                @relation(fields: [userId], references: [id])
+  customer            Customer?           @relation(fields: [customerId], references: [id])
+  items               SaleItem[]
+  movements           InventoryMovement[]
+  paymentAllocations  PaymentAllocation[]
+
+  @@unique([userId, idempotencyKey])
+  @@index([userId])
+  @@index([userId, status])
+  @@index([userId, createdAt])
+  @@index([customerId])
+  @@index([userId, customerId, status])
+}
+
+/// An immutable snapshot of one sold InventoryItem: the price it sold for and
+/// the acquisition cost it carried at that moment, so profit stays accurate
+/// forever even if the InventoryItem record is later corrected. Never
+/// updated or deleted after creation — `voidedAt` marks a cancellation
+/// reversal instead of a generic update, which is also what backs the
+/// partial unique index preventing the same InventoryItem from appearing in
+/// more than one *active* sale item (hand-added in the migration — see
+/// DATABASE.md, Prisma's schema DSL cannot express a partial index).
+model SaleItem {
+  id                      String    @id @db.Uuid
+  userId                  String    @db.Uuid
+  saleId                  String    @db.Uuid
+  inventoryItemId         String    @db.Uuid
+  salePrice               Decimal   @db.Decimal(10, 2)
+  acquisitionCostSnapshot Decimal   @db.Decimal(10, 2)
+  voidedAt                DateTime?
+
+  createdAt DateTime @default(now())
+  createdBy String   @db.Uuid
+
+  user          User          @relation(fields: [userId], references: [id])
+  sale          Sale          @relation(fields: [saleId], references: [id])
+  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id])
+
+  @@index([userId])
+  @@index([saleId])
+  @@index([inventoryItemId])
+  @@index([userId, createdAt]) // period-scoped dashboard aggregates (top products/brands) — see DATABASE.md
+}
+
+/// A seller's own customer, for tracking "fiado" (buy-now-pay-later) sales.
+/// Duplicate names are expected and allowed — there is no natural-key
+/// uniqueness on `name` at all. See DATABASE.md, "Accounts receivable".
+model Customer {
+  id          String  @id @db.Uuid
+  userId      String  @db.Uuid
+  name        String
+  phone       String?
+  notes       String?
+  /// normalizeSearchText(name) — the only searchable field, maintained by the service layer.
+  searchTerms String
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  createdBy String    @db.Uuid
+  updatedBy String    @db.Uuid
+
+  user     User              @relation(fields: [userId], references: [id])
+  sales    Sale[]
+  payments CustomerPayment[]
+
+  @@index([userId])
+  @@index([userId, deletedAt])
+}
+
+/// One payment/receipt event. `customerId` is nullable: a fully-paid sale
+/// with no customer still creates one of these — every payment, walk-in or
+/// fiado, is uniformly tracked, so "total received" reporting is correct
+/// either way. Immutable once created; reversal (estorno) is `voidedAt` —
+/// mirrors SaleItem.voidedAt exactly, the row is never deleted. See
+/// DATABASE.md, "Accounts receivable".
+model CustomerPayment {
+  id             String    @id @db.Uuid
+  userId         String    @db.Uuid
+  customerId     String?   @db.Uuid
+  amount         Decimal   @db.Decimal(10, 2)
+  notes          String?
+  /// How this specific receipt was received. Null only for historical rows.
+  paymentMethod  PaymentMethod?
+  voidedAt       DateTime?
+  /// Client-generated, mirrors Sale.idempotencyKey exactly.
+  idempotencyKey String?
+
+  createdAt DateTime @default(now())
+  createdBy String   @db.Uuid
+
+  user        User                @relation(fields: [userId], references: [id])
+  customer    Customer?           @relation(fields: [customerId], references: [id])
+  allocations PaymentAllocation[]
+
+  @@unique([userId, idempotencyKey])
+  @@index([userId])
+  @@index([userId, customerId])
+  @@index([userId, customerId, createdAt])
+  @@index([userId, createdAt])
+}
+
+/// One payment can fund multiple sales (FIFO) or one sale can be funded by
+/// multiple payments over time — this is the join, and the permanent,
+/// immutable audit trail of "this much of this payment went to this sale."
+/// Never updated or deleted, even when the parent CustomerPayment is later
+/// voided — the reversal is represented entirely by
+/// CustomerPayment.voidedAt; allocations stay as historical proof.
+model PaymentAllocation {
+  id                String  @id @db.Uuid
+  userId            String  @db.Uuid
+  customerPaymentId String  @db.Uuid
+  saleId            String  @db.Uuid
+  amount            Decimal @db.Decimal(10, 2)
+
+  createdAt DateTime @default(now())
+  createdBy String   @db.Uuid
+
+  user            User            @relation(fields: [userId], references: [id])
+  customerPayment CustomerPayment @relation(fields: [customerPaymentId], references: [id])
+  sale            Sale            @relation(fields: [saleId], references: [id])
+
+  @@index([userId])
+  @@index([customerPaymentId])
+  @@index([saleId])
+}

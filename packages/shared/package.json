@@ -1,0 +1,23 @@
+{
+  "name": "@lotea/shared",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "decimal.js": "^10.6.0",
+    "uuidv7": "^1.2.1",
+    "zod": "^4.1.10"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "typescript": "~6.0.3",
+    "vitest": "^4.1.10"
+  }
+}

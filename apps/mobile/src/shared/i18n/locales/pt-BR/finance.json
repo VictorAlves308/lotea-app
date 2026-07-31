@@ -1,0 +1,17 @@
+{
+  "title": "Financeiro",
+  "tabOverview": "Visão geral",
+  "tabFlow": "Fluxo",
+  "tabReceivable": "A receber",
+  "revenueLabel": "Receita",
+  "costsLabel": "Custos",
+  "netProfitLabel": "Lucro líquido",
+  "marginLabel": "Margem de {{pct}}%",
+  "flowSectionTitle": "Fluxo · período",
+  "receivablesSectionTitle": "Contas a receber",
+  "viewAllButton": "Ver todas",
+  "loadError": "Não foi possível carregar os dados financeiros.",
+  "retryButton": "Tentar novamente",
+  "emptyReceivablesTitle": "Nenhum cliente com saldo em aberto",
+  "emptyChartTitle": "Sem dados no período"
+}

@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd *)",
+      "Bash(npm view *)",
+      "Bash(git fetch *)",
+      "Bash(npm run typecheck)",
+      "Bash(npx playwright test --list)",
+      "Bash(npm run lint)",
+      "Bash(npm test)",
+      "Bash(npx prisma generate)",
+      "Bash(npm run build)",
+      "Bash(curl -s http://localhost:3000/health)",
+      "Bash(npx prisma validate)",
+      "Bash(npx tsc --noEmit)",
+      "Bash(docker ps*)",
+      "Bash(docker start lotea-postgres)",
+      "Bash(docker stop lotea-postgres)",
+      "Bash(docker exec lotea-postgres pg_isready*)",
+      "Bash(docker exec lotea-postgres psql*)"
+    ]
+  }
+}

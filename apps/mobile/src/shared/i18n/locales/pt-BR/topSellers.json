@@ -1,0 +1,13 @@
+{
+  "title": "Mais vendidos",
+  "subtitle": "Desempenho · {{period}}",
+  "periodMonth": "Mês",
+  "periodQuarter": "Trimestre",
+  "periodYear": "Ano",
+  "loadError": "Não foi possível carregar os produtos mais vendidos.",
+  "retryButton": "Tentar novamente",
+  "emptyTitle": "Nenhuma venda no período",
+  "rankBadge": "★ {{rank}}º",
+  "unitsSoldCaption_one": "{{count}} unidade vendida",
+  "unitsSoldCaption_other": "{{count}} unidades vendidas"
+}

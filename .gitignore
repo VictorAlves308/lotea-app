@@ -1,0 +1,48 @@
+# dependencies
+node_modules/
+
+# builds
+dist/
+build/
+*.tsbuildinfo
+
+# Expo
+.expo/
+web-build/
+expo-env.d.ts
+
+# native
+/apps/mobile/ios/
+/apps/mobile/android/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Prisma
+apps/api/prisma/dev.db*
+apps/api/src/generated/
+
+# env
+.env
+.env.local
+.env.*.local
+
+# test / coverage
+coverage/
+
+# logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+nul
+
+# editors
+.vscode/*
+!.vscode/extensions.json
+.idea/
