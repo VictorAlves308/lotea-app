@@ -1,7 +1,8 @@
 import { router } from 'expo-router';
 
 import { env } from './env';
-import { clearAuthTokens, getAccessToken, getRefreshToken, setAccessToken, setRefreshToken } from './storage';
+import { clearSession } from './session';
+import { getAccessToken, getRefreshToken, setAccessToken, setRefreshToken } from './storage';
 
 interface ApiErrorBody {
   error?: { code?: string; message?: string };
@@ -74,7 +75,7 @@ async function rawRequest(path: string, init?: RequestInit, isRetry = false): Pr
     if (refreshed) {
       return rawRequest(path, init, true);
     }
-    await clearAuthTokens();
+    await clearSession();
     router.replace('/login');
   }
 

@@ -1,12 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Modal, Pressable, View } from 'react-native';
 import type { EdgeInsets } from 'react-native-safe-area-context';
 
 import { logout as logoutRequest } from '../../features/auth/api';
-import { clearAuthTokens, getRefreshToken } from '../lib/storage';
+import { clearSession } from '../lib/session';
+import { getRefreshToken } from '../lib/storage';
 import { palette } from '../theme/colors';
 import { Text } from './Text';
 
@@ -214,7 +214,6 @@ function MoreSheet({ visible, onClose, onLogout }: { visible: boolean; onClose: 
  */
 function TabBarContent({ state, descriptors, navigation, insets }: TabBarProps) {
   const [moreOpen, setMoreOpen] = useState(false);
-  const queryClient = useQueryClient();
 
   async function handleLogout() {
     setMoreOpen(false);
@@ -223,8 +222,7 @@ function TabBarContent({ state, descriptors, navigation, insets }: TabBarProps) 
       // Best-effort — revokes the refresh token server-side, but local logout proceeds either way.
       await logoutRequest(refreshToken).catch(() => {});
     }
-    await clearAuthTokens();
-    queryClient.clear();
+    await clearSession();
     router.replace('/login');
   }
 
