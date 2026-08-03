@@ -15,6 +15,7 @@ import errorHandlerPlugin from './plugins/error-handler';
 import openapiPlugin from './plugins/openapi';
 import prismaPlugin from './plugins/prisma';
 import rateLimitPlugin from './plugins/rate-limit';
+import securityHeadersPlugin from './plugins/security-headers';
 import sensiblePlugin from './plugins/sensible';
 import { loggerOptions } from './shared/lib/logger';
 
@@ -28,6 +29,7 @@ export function buildApp() {
   app.setSerializerCompiler(serializerCompiler);
 
   app.register(corsPlugin);
+  app.register(securityHeadersPlugin);
   app.register(sensiblePlugin);
   app.register(errorHandlerPlugin);
   app.register(prismaPlugin);
