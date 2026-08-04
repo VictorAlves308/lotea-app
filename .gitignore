@@ -25,9 +25,6 @@ expo-env.d.ts
 apps/api/prisma/dev.db*
 apps/api/src/generated/
 
-# Vercel — the bundled function is generated at deploy time (scripts/bundle-vercel.mjs)
-apps/api/api/
-
 # env
 .env
 .env.local
