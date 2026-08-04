@@ -1,4 +1,4 @@
-import type { CatalogProduct, Prisma } from '../../generated/prisma/client.ts';
+import type { CatalogProduct, Prisma } from '../../generated/prisma/client';
 
 type Db = Prisma.TransactionClient;
 

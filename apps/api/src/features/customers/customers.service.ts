@@ -1,8 +1,8 @@
 import { normalizeSearchText } from '@lotea/shared';
 
 import { computeSaleStatus } from '../sales/sale-status';
-import { Prisma, type PrismaClient } from '../../generated/prisma/client.ts';
-import type { Customer, CustomerPayment, PaymentAllocation, PaymentMethod } from '../../generated/prisma/client.ts';
+import { Prisma, type PrismaClient } from '../../generated/prisma/client';
+import type { Customer, CustomerPayment, PaymentAllocation, PaymentMethod } from '../../generated/prisma/client';
 import {
   CustomerHasOpenBalanceError,
   CustomerNotFoundError,

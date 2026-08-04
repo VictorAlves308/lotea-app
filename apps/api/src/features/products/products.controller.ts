@@ -7,7 +7,7 @@ import type {
 } from '@lotea/shared';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
-import type { Product } from '../../generated/prisma/client.ts';
+import type { Product } from '../../generated/prisma/client';
 import { NotFoundError } from '../../shared/errors/app-error';
 import * as inventoryService from '../inventory/inventory.service';
 import * as productsService from './products.service';

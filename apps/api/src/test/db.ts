@@ -2,7 +2,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { buildCatalogProductSearchTerms, generateId, normalizeSearchText } from '@lotea/shared';
 import bcrypt from 'bcryptjs';
 
-import { PrismaClient } from '../generated/prisma/client.ts';
+import { PrismaClient } from '../generated/prisma/client';
 
 /**
  * A real PrismaClient connected to a dedicated test database (see

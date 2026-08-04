@@ -1,4 +1,4 @@
-import { Prisma } from '../../generated/prisma/client.ts';
+import { Prisma } from '../../generated/prisma/client';
 
 /**
  * Checks whether an error is a Postgres unique-violation (Prisma P2002) on a

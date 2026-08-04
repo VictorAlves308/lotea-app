@@ -3,7 +3,7 @@ import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 
 import { upsertCatalogProducts } from './lib/upsert-catalog-products';
-import { PrismaClient } from '../src/generated/prisma/client.ts';
+import { PrismaClient } from '../src/generated/prisma/client';
 
 /**
  * Standalone entry point for seeding/updating the global product catalog,

@@ -1,4 +1,4 @@
-import { Prisma } from '../../generated/prisma/client.ts';
+import { Prisma } from '../../generated/prisma/client';
 
 /**
  * Retries a bounded number of times on Prisma's P2034 ("Transaction failed

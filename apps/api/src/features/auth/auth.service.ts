@@ -1,6 +1,6 @@
 import type { AuthTokens, CurrentUser } from '@lotea/shared';
 
-import type { PrismaClient, User } from '../../generated/prisma/client.ts';
+import type { PrismaClient, User } from '../../generated/prisma/client';
 import {
   EmailAlreadyRegisteredError,
   InvalidCredentialsError,

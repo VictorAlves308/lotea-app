@@ -1,4 +1,4 @@
-import type { Lot, LotStatus, Prisma } from '../../generated/prisma/client.ts';
+import type { Lot, LotStatus, Prisma } from '../../generated/prisma/client';
 import { InvalidLotStatusTransitionError, NotFoundError } from '../../shared/errors/app-error';
 import * as lotsRepository from './lots.repository';
 

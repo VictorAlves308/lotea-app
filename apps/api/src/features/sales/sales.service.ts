@@ -1,4 +1,4 @@
-import { Prisma, type PaymentMethod, type PrismaClient, type SaleStatus } from '../../generated/prisma/client.ts';
+import { Prisma, type PaymentMethod, type PrismaClient, type SaleStatus } from '../../generated/prisma/client';
 import * as customersService from '../customers/customers.service';
 import * as inventoryService from '../inventory/inventory.service';
 import {

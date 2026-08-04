@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { Prisma } from '../../generated/prisma/client.ts';
+import { Prisma } from '../../generated/prisma/client';
 import { apportionAmountByWeight } from './lot-apportionment';
 
 function decimal(value: string) {

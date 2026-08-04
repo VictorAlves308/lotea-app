@@ -1,6 +1,6 @@
 import { buildProductSearchTerms, normalizeSearchText } from '@lotea/shared';
 
-import type { Prisma, Product } from '../../generated/prisma/client.ts';
+import type { Prisma, Product } from '../../generated/prisma/client';
 import { NotFoundError } from '../../shared/errors/app-error';
 import * as catalogService from '../catalog/catalog.service';
 import * as productsRepository from './products.repository';

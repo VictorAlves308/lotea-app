@@ -1,7 +1,7 @@
 import { generateId } from '@lotea/shared';
 
-import { Prisma } from '../../generated/prisma/client.ts';
-import type { PaymentMethod, Product, Sale, SaleItem, SaleStatus } from '../../generated/prisma/client.ts';
+import { Prisma } from '../../generated/prisma/client';
+import type { PaymentMethod, Product, Sale, SaleItem, SaleStatus } from '../../generated/prisma/client';
 
 type Db = Prisma.TransactionClient;
 

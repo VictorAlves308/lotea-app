@@ -1,6 +1,6 @@
 import type { DashboardGranularity } from '@lotea/shared';
 
-import { Prisma, type PrismaClient } from '../../generated/prisma/client.ts';
+import { Prisma, type PrismaClient } from '../../generated/prisma/client';
 import * as customersService from '../customers/customers.service';
 import * as productsService from '../products/products.service';
 import * as salesService from '../sales/sales.service';

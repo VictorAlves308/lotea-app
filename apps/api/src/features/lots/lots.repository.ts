@@ -1,6 +1,6 @@
 import { generateId } from '@lotea/shared';
 
-import type { Lot, LotStatus, Prisma } from '../../generated/prisma/client.ts';
+import type { Lot, LotStatus, Prisma } from '../../generated/prisma/client';
 
 type Db = Prisma.TransactionClient;
 

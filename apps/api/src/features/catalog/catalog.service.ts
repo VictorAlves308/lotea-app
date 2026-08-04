@@ -1,6 +1,6 @@
 import { normalizeSearchText } from '@lotea/shared';
 
-import type { CatalogProduct, Prisma } from '../../generated/prisma/client.ts';
+import type { CatalogProduct, Prisma } from '../../generated/prisma/client';
 import { CatalogProductNotFoundError } from '../../shared/errors/app-error';
 import * as catalogRepository from './catalog.repository';
 

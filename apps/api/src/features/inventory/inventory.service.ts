@@ -1,6 +1,6 @@
 import type { StockWriteOffReason } from '@lotea/shared';
 
-import { Prisma, type InventoryMovementType, type PrismaClient } from '../../generated/prisma/client.ts';
+import { Prisma, type InventoryMovementType, type PrismaClient } from '../../generated/prisma/client';
 import * as lotsService from '../lots/lots.service';
 import * as productsService from '../products/products.service';
 import { InsufficientStockError, LotNotActiveError, NotFoundError } from '../../shared/errors/app-error';

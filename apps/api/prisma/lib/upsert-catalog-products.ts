@@ -1,7 +1,7 @@
 import { buildCatalogProductSearchTerms, generateId } from '@lotea/shared';
 
 import { CATALOG_SEED_DATA } from '../catalog-seed-data';
-import type { PrismaClient } from '../../src/generated/prisma/client.ts';
+import type { PrismaClient } from '../../src/generated/prisma/client';
 
 /**
  * Upserts every entry in CATALOG_SEED_DATA on its (brand, name, volume)

@@ -9,7 +9,7 @@ import type {
 } from '@lotea/shared';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
-import type { Customer } from '../../generated/prisma/client.ts';
+import type { Customer } from '../../generated/prisma/client';
 import * as customersService from './customers.service';
 import type { CustomerPaymentWithAllocations } from './customers.repository';
 

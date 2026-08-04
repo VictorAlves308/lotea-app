@@ -4,7 +4,7 @@ import fp from 'fastify-plugin';
 
 // Prisma 7 generates client source into a custom output path rather than
 // node_modules/@prisma/client — see prisma/schema.prisma's generator block.
-import { PrismaClient } from '../generated/prisma/client.ts';
+import { PrismaClient } from '../generated/prisma/client';
 import { env } from '../shared/lib/env';
 
 declare module 'fastify' {

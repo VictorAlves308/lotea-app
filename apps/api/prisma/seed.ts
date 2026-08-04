@@ -8,7 +8,7 @@ import * as inventoryService from '../src/features/inventory/inventory.service';
 import * as lotsService from '../src/features/lots/lots.service';
 import * as productsService from '../src/features/products/products.service';
 import * as salesService from '../src/features/sales/sales.service';
-import { PrismaClient } from '../src/generated/prisma/client.ts';
+import { PrismaClient } from '../src/generated/prisma/client';
 import { hashPassword } from '../src/shared/lib/password';
 import { upsertCatalogProducts } from './lib/upsert-catalog-products';
 

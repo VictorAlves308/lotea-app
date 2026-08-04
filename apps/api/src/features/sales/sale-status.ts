@@ -1,4 +1,4 @@
-import type { Prisma, SaleStatus } from '../../generated/prisma/client.ts';
+import type { Prisma, SaleStatus } from '../../generated/prisma/client';
 
 /**
  * The single source of truth for a Sale's status — always derived from

@@ -5,7 +5,7 @@ import type {
   InventoryItemStatus,
   InventoryMovementType,
   Prisma,
-} from '../../generated/prisma/client.ts';
+} from '../../generated/prisma/client';
 
 /** Anything with Prisma's query API — the main client or an open `$transaction` client. */
 type Db = Prisma.TransactionClient;

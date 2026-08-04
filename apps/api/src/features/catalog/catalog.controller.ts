@@ -1,7 +1,7 @@
 import type { CatalogProductSuggestion, SearchCatalogInput } from '@lotea/shared';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
-import type { CatalogProduct } from '../../generated/prisma/client.ts';
+import type { CatalogProduct } from '../../generated/prisma/client';
 import * as catalogService from './catalog.service';
 
 function toSuggestion(catalogProduct: CatalogProduct): CatalogProductSuggestion {
