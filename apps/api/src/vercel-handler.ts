@@ -2,7 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 
 import type { FastifyInstance } from 'fastify';
 
-import { buildApp } from '../src/app';
+import { buildApp } from './app';
 
 // Reused across warm invocations of the same serverless instance — building
 // a fresh Fastify app (re-registering every plugin/route) on every request
