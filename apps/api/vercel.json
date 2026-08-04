@@ -1,4 +1,5 @@
 {
   "outputDirectory": "public",
+  "buildCommand": "npx prisma generate --schema=prisma/schema.prisma --config=prisma.config.ts && npx prisma migrate deploy --schema=prisma/schema.prisma --config=prisma.config.ts && node scripts/bundle-vercel.mjs",
   "rewrites": [{ "source": "/(.*)", "destination": "/api" }]
 }
